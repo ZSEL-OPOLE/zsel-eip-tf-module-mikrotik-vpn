@@ -9,8 +9,8 @@
 terraform {
   required_providers {
     routeros = {
-      source  = "ddelnano/mikrotik"
-      version = "~> 0.15"
+      source  = "terraform-routeros/routeros"
+      version = "~> 1.0"
     }
   }
 }
