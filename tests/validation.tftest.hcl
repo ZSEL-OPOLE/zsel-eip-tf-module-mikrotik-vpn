@@ -80,7 +80,7 @@ run "valid_config" {
   }
   
   assert {
-    condition     = routeros_interface_wireguard.wg_server.listen_port == "51820"
+    condition     = routeros_interface_wireguard.wg_server.listen_port == 51820
     error_message = "Port should be 51820"
   }
 }
