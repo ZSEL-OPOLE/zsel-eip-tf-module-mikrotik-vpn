@@ -2,6 +2,9 @@
 # MikroTik WireGuard VPN Module - Basic Tests
 # =============================================================================
 
+# Mock provider configuration for testing without real RouterOS device
+mock_provider "routeros" {}
+
 # Test 1: Basic WireGuard server creation
 run "basic_wireguard_server" {
   command = plan
@@ -23,7 +26,7 @@ run "basic_wireguard_server" {
   }
   
   assert {
-    condition     = routeros_interface_wireguard.wg_server.mtu == 1420
+    condition     = routeros_interface_wireguard.wg_server.mtu == "1420"
     error_message = "MTU should be 1420"
   }
 }
@@ -70,7 +73,7 @@ run "single_peer" {
   }
   
   assert {
-    condition     = routeros_interface_wireguard_peer.peers["admin1"].allowed_address == "10.10.50.10/32"
+    condition     = contains(routeros_interface_wireguard_peer.peers["admin1"].allowed_address, "10.10.50.10/32")
     error_message = "Peer should have correct IP"
   }
 }
@@ -187,7 +190,7 @@ run "peer_keepalive" {
   }
   
   assert {
-    condition     = routeros_interface_wireguard_peer.peers["mobile_user"].persistent_keepalive == 30
+    condition     = routeros_interface_wireguard_peer.peers["mobile_user"].persistent_keepalive == "30"
     error_message = "Peer should have keepalive of 30 seconds"
   }
 }

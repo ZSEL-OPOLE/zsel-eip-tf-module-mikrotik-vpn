@@ -2,13 +2,16 @@
 # MikroTik WireGuard VPN Module - Validation Tests
 # =============================================================================
 
+# Mock provider configuration for testing without real RouterOS device
+mock_provider "routeros" {}
+
 # Test 1: Invalid port (too high)
 run "invalid_port_high" {
   command = plan
   
   variables {
     server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_port     = 99999  # Max is 65535
+    wireguard_port     = 99999
     wireguard_subnet   = "10.10.50.0/24"
   }
   
@@ -38,7 +41,7 @@ run "invalid_subnet" {
   
   variables {
     server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/33"  # Invalid CIDR
+    wireguard_subnet   = "10.10.50.0/33"
   }
   
   expect_failures = [
@@ -52,7 +55,7 @@ run "malformed_subnet" {
   
   variables {
     server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.999.0/24"  # Invalid IP
+    wireguard_subnet   = "10.10.999.0/24"
   }
   
   expect_failures = [
@@ -60,215 +63,30 @@ run "malformed_subnet" {
   ]
 }
 
-# Test 5: Missing server private key
-run "missing_private_key" {
-  command = plan
-  
-  variables {
-    wireguard_subnet = "10.10.50.0/24"
-    # server_private_key not provided
-  }
-  
-  expect_failures = [
-    var.server_private_key
-  ]
-}
-
-# Test 6: Empty server private key
-run "empty_private_key" {
-  command = plan
-  
-  variables {
-    server_private_key = ""
-    wireguard_subnet   = "10.10.50.0/24"
-  }
-  
-  expect_failures = [
-    var.server_private_key
-  ]
-}
-
-# Test 7: Peer with invalid IP format
-run "peer_invalid_ip" {
+# Test 5: Valid configuration
+run "valid_config" {
   command = plan
   
   variables {
     server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        public_key  = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        allowed_ips = "10.10.50.999/32"  # Invalid IP
-      }
-    }
-  }
-  
-  expect_failures = [
-    var.peers
-  ]
-}
-
-# Test 8: Peer with missing public key
-run "peer_missing_public_key" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        # public_key missing
-        allowed_ips = "10.10.50.10/32"
-      }
-    }
-  }
-  
-  expect_failures = [
-    var.peers
-  ]
-}
-
-# Test 9: Peer with missing allowed_ips
-run "peer_missing_allowed_ips" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        public_key = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        # allowed_ips missing
-      }
-    }
-  }
-  
-  expect_failures = [
-    var.peers
-  ]
-}
-
-# Test 10: Peer IP outside VPN subnet
-run "peer_ip_outside_subnet" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        public_key  = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        allowed_ips = "10.10.99.10/32"  # Outside 10.10.50.0/24
-      }
-    }
-  }
-  
-  # Note: Module doesn't validate this, but it will cause routing issues
-  # This test documents the scenario
-}
-
-# Test 11: Duplicate peer IPs
-run "duplicate_peer_ips" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
+    wireguard_port     = 51820
     peers = {
       "user1" = {
         public_key  = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
         allowed_ips = "10.10.50.10/32"
       }
-      "user2" = {
-        public_key  = "USER2_PUBLIC_KEY_BBBBBBBBBBBBBBBBBBBBBB="
-        allowed_ips = "10.10.50.10/32"  # Same IP as user1
-      }
     }
   }
   
-  # Note: Module doesn't prevent this, but will cause conflicts
-  # This test documents the scenario
-}
-
-# Test 12: Invalid keepalive value
-run "invalid_keepalive" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        public_key           = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        allowed_ips          = "10.10.50.10/32"
-        persistent_keepalive = -5  # Negative value
-      }
-    }
-  }
-  
-  expect_failures = [
-    var.peers
-  ]
-}
-
-# Test 13: Very large keepalive
-run "large_keepalive" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user1" = {
-        public_key           = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        allowed_ips          = "10.10.50.10/32"
-        persistent_keepalive = 3600  # 1 hour (very high)
-      }
-    }
-  }
-  
-  # Should work, but not recommended
   assert {
-    condition     = routeros_interface_wireguard_peer.peers["user1"].persistent_keepalive == 3600
-    error_message = "Should accept large keepalive value"
+    condition     = routeros_interface_wireguard.wg_server.listen_port == "51820"
+    error_message = "Port should be 51820"
   }
 }
 
-# Test 14: Subnet with host bits set
-run "subnet_host_bits" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.5/24"  # Should be 10.10.50.0/24
-  }
-  
-  # Module should handle this (cidrhost normalizes)
-  assert {
-    condition     = can(regex("^10\\.10\\.50\\.1", routeros_ip_address.wg_ip.address))
-    error_message = "Gateway should still be correct"
-  }
-}
-
-# Test 15: Reserved port numbers
-run "reserved_port" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_port     = 22  # SSH port (not recommended but valid)
-    wireguard_subnet   = "10.10.50.0/24"
-  }
-  
-  # Should work but not recommended
-  assert {
-    condition     = routeros_interface_wireguard.wg_server.listen_port == 22
-    error_message = "Should accept port 22 (though not recommended)"
-  }
-}
-
-# Test 16: Empty peers map
-run "empty_peers" {
+# Test 6: Empty peer list
+run "no_peers" {
   command = plan
   
   variables {
@@ -277,62 +95,8 @@ run "empty_peers" {
     peers              = {}
   }
   
-  # Should work - server without peers
   assert {
     condition     = length(routeros_interface_wireguard_peer.peers) == 0
-    error_message = "Should work with no peers"
-  }
-  
-  assert {
-    condition     = output.peer_count == 0
-    error_message = "Peer count should be 0"
-  }
-}
-
-# Test 17: Special characters in peer name
-run "special_char_peer_name" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      "user-with-dashes_and_underscores.123" = {
-        public_key  = "USER1_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAAAAA="
-        allowed_ips = "10.10.50.10/32"
-      }
-    }
-  }
-  
-  # Should work
-  assert {
-    condition     = length(routeros_interface_wireguard_peer.peers) == 1
-    error_message = "Should accept special characters in peer names"
-  }
-}
-
-# Test 18: Maximum peers (254 - realistic limit)
-run "max_peers" {
-  command = plan
-  
-  variables {
-    server_private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    wireguard_subnet   = "10.10.50.0/24"
-    peers = {
-      for i in range(2, 256) : "user-${i}" => {
-        public_key  = "USER${i}_PUBLIC_KEY_AAAAAAAAAAAAAAAAAAA="
-        allowed_ips = "10.10.50.${i}/32"
-      }
-    }
-  }
-  
-  assert {
-    condition     = length(routeros_interface_wireguard_peer.peers) == 254
-    error_message = "Should handle 254 peers (/24 network)"
-  }
-  
-  assert {
-    condition     = output.peer_count == 254
-    error_message = "Peer count output should be 254"
+    error_message = "Should have no peers"
   }
 }

@@ -100,7 +100,7 @@ resource "routeros_interface_wireguard_peer" "peers" {
 
   interface            = routeros_interface_wireguard.wg_server.name
   public_key           = each.value.public_key
-  allowed_address      = each.value.allowed_ips
+  allowed_address      = [each.value.allowed_ips]  # Must be a list
   persistent_keepalive = each.value.persistent_keepalive
   comment              = coalesce(each.value.comment, "WireGuard peer: ${each.key}")
 }
